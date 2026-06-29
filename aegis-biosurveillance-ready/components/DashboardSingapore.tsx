@@ -1,0 +1,247 @@
+import React, { useState, useMemo } from 'react';
+import ExpandableKpiCard from './ExpandableKpiCard';
+import TrendChart from './TrendChart';
+import MapChart from './MapChart';
+import AlertsPanel from './AlertsPanel';
+import AiAnalysisPanel from './AiAnalysisPanel';
+import ThreatSpectrum from './ThreatSpectrum';
+import ZoonoticSurveillancePanel from './ZoonoticSurveillancePanel';
+import EnvironmentalPanel from './EnvironmentalPanel';
+import StateDashboard from './StateDashboard';
+import ZoonoticDetailModal from './ZoonoticDetailModal';
+import WastewaterDetailModal from './WastewaterDetailModal';
+import WildlifeSurveillancePanel from './WildlifeSurveillancePanel';
+import DisasterResponsePanel from './DisasterResponsePanel';
+import GenomicSurveillancePanel from './GenomicSurveillancePanel';
+import WildlifeDetailModal from './WildlifeDetailModal';
+import DisasterDetailModal from './DisasterDetailModal';
+import GenomicDetailModal from './GenomicDetailModal';
+import SlaughterhouseDetailModal from './SlaughterhouseDetailModal';
+import OneHealthIndexPanel from './OneHealthIndexPanel';
+import ModuleCard from './ModuleCard';
+import BiosecurityDashboard from './BiosecurityDashboard';
+import SurveillanceMapView from './surveillance/SurveillanceMapView';
+import TransitSurveillancePanel from './TransitSurveillancePanel';
+import TransitDetailModal from './TransitDetailModal';
+
+import { EscalatedAlert, ZoonoticAlert, EnvironmentalAlert, WildlifeAlert, DisasterAlert, GenomicSignal, SlaughterhouseData, SurveillanceType, TransitAlert } from '../types';
+import { 
+    kpiDataSingapore, 
+    dengueTrendDataSingapore, 
+    hfmdTrendDataSingapore, 
+    mapDataSingapore, 
+    mockAlertsSingapore, 
+    MOCK_DATA_SUMMARY_SINGAPORE,
+    threatSpectrumDataSingapore,
+    SINGAPORE_REGION_PATHS,
+    oneHealthIndexDataSingapore,
+    transitAlertsSingapore,
+} from './constants';
+import { calculateOneHealthIndex } from '../services/oneHealthService';
+
+interface DashboardSingaporeProps {
+  activeAlert: EscalatedAlert | null;
+  onEscalate: (alert: EscalatedAlert) => void;
+  onAcknowledge: (alert: EscalatedAlert) => void;
+  onResolve: () => void;
+}
+
+const BiohazardIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M15.33,14.25a.75.75,0,0,1,0-1.5,1.5,1.5,0,0,0,1.5-1.5.75.75,0,0,1,1.5,0,3,3,0,0,1-3,3Z"/>
+      <path d="M8.67,14.25a3,3,0,0,1-3-3,.75.75,0,0,1,1.5,0,1.5,1.5,0,0,0,1.5,1.5.75.75,0,0,1,0,1.5Z"/>
+      <path d="M12,12.75a.75.75,0,0,1-.75-.75V8.25a.75.75,0,0,1,1.5,0v3.75A.75.75,0,0,1,12,12.75Z"/>
+      <path d="M12,21.75a4.5,4.5,0,0,1-4.32-3.2.75.75,0,0,1,1.45-.4,3,3,0,0,0,5.74,0,.75.75,0,0,1,1.45.4A4.5,4.5,0,0,1,12,21.75Z"/>
+      <path d="M19.32,18.15a.75.75,0,0,1-.66-.94,3,3,0,0,0-1.2-2.36.75.75,0,1,1,.9-1.2,4.5,4.5,0,0,1,1.8,3.56A.75.75,0,0,1,19.32,18.15Z"/>
+      <path d="M4.68,18.15a.75.75,0,0,1-.84-1,4.5,4.5,0,0,1,1.8-3.56.75.75,0,1,1,.9,1.2,3,3,0,0,0-1.2,2.36A.75.75,0,0,1,4.68,18.15Z"/>
+      <path d="M12,6.75A4.5,4.5,0,0,1,7.5,2.25a.75.75,0,0,1,0,1.5,3,3,0,0,0,0,6A.75.75,0,0,1,7.5,8.25,4.5,4.5,0,0,1,12,6.75Z"/>
+      <path d="M12,6.75A4.5,4.5,0,0,0,16.5,2.25a.75.75,0,0,1,0-1.5,3,3,0,0,1,0,6,.75.75,0,0,1,0-1.5A4.5,4.5,0,0,0,12,6.75Z"/>
+      <path d="M12,12.75a4.5,4.5,0,0,1-4.27-2.92.75.75,0,0,1,1.4-.56,3,3,0,0,0,5.74,0,.75.75,0,0,1,1.4.56A4.5,4.5,0,0,1,12,12.75Z"/>
+    </svg>
+);
+
+const DashboardSingapore: React.FC<DashboardSingaporeProps> = ({ activeAlert, onEscalate, onAcknowledge, onResolve }) => {
+  const [selectedState, setSelectedState] = useState<string | null>(null);
+  const [activeSurveillanceLayer, setActiveSurveillanceLayer] = useState<SurveillanceType | null>(null);
+  const [zoonoticDetail, setZoonoticDetail] = useState<ZoonoticAlert | null>(null);
+  const [wastewaterDetail, setWastewaterDetail] = useState<EnvironmentalAlert | null>(null);
+  const [wildlifeDetail, setWildlifeDetail] = useState<WildlifeAlert | null>(null);
+  const [disasterDetail, setDisasterDetail] = useState<DisasterAlert | null>(null);
+  const [genomicDetail, setGenomicDetail] = useState<GenomicSignal | null>(null);
+  const [slaughterhouseDetail, setSlaughterhouseDetail] = useState<SlaughterhouseData | null>(null);
+  const [transitDetail, setTransitDetail] = useState<TransitAlert | null>(null);
+  const [showBiosecurityModule, setShowBiosecurityModule] = useState(false);
+
+  const handleStateSelect = (stateId: string) => {
+    setSelectedState(stateId);
+  };
+
+  const handleBackToNationalView = () => {
+    setSelectedState(null);
+    setActiveSurveillanceLayer(null);
+  };
+  
+  const oneHealthIndex = useMemo(() => 
+    calculateOneHealthIndex(
+      oneHealthIndexDataSingapore.human,
+      oneHealthIndexDataSingapore.zoonotic,
+      oneHealthIndexDataSingapore.environmental
+    ), []);
+
+  if (activeSurveillanceLayer) {
+      return <SurveillanceMapView type={activeSurveillanceLayer} onBack={handleBackToNationalView} country="Singapore" />;
+  }
+  
+  if (selectedState) {
+    return <StateDashboard 
+              stateId={selectedState} 
+              onBack={handleBackToNationalView}
+              activeAlert={activeAlert}
+              onEscalate={onEscalate}
+              onAcknowledge={onAcknowledge}
+              onResolve={onResolve}
+           />;
+  }
+  
+  if (showBiosecurityModule) {
+    return <BiosecurityDashboard country="Singapore" onBack={() => setShowBiosecurityModule(false)} />;
+  }
+
+  return (
+    <>
+      <div className="space-y-6">
+        {/* Top Panels */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <OneHealthIndexPanel indexData={oneHealthIndex} country="Singapore" />
+            <ModuleCard
+              title="Bio-Terrorism Threat Module"
+              description="Access the biowarfare threat matrix, lab network status, and strategic counter-terrorism analysis."
+              icon={<BiohazardIcon className="w-6 h-6 text-red-400" />}
+              onClick={() => setShowBiosecurityModule(true)}
+            />
+        </div>
+
+        {/* KPIs */}
+        <h2 className="text-2xl font-bold text-white pt-4">Syndromic Surveillance</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {kpiDataSingapore.map((kpi) => (
+            <ExpandableKpiCard key={kpi.title} kpi={kpi} />
+          ))}
+        </div>
+
+        {/* Main content grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Left and middle columns */}
+          <div className="lg:col-span-2 space-y-6">
+            <MapChart title="Regional Case Distribution (Singapore)" data={mapDataSingapore} paths={SINGAPORE_REGION_PATHS} onStateClick={handleStateSelect} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <TrendChart title="Dengue Trends" data={dengueTrendDataSingapore} color="#F85149" />
+              <TrendChart title="HFMD Trends" data={hfmdTrendDataSingapore} color="#58A6FF" />
+            </div>
+             <AiAnalysisPanel dataSummary={MOCK_DATA_SUMMARY_SINGAPORE} />
+          </div>
+
+          {/* Right column */}
+          <div className="space-y-6">
+            <AlertsPanel alerts={mockAlertsSingapore} />
+            <ThreatSpectrum threats={threatSpectrumDataSingapore} />
+          </div>
+        </div>
+
+        {/* One Health Modules */}
+        <h2 className="text-xl font-bold text-white pt-6 border-t border-brand-light-blue">One Health & Advanced Surveillance</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <ZoonoticSurveillancePanel
+              alerts={oneHealthIndexDataSingapore.zoonotic}
+              slaughterhouseAlerts={oneHealthIndexDataSingapore.slaughterhouses}
+              onAlertClick={setZoonoticDetail}
+              onSlaughterhouseAlertClick={setSlaughterhouseDetail}
+              dataSource="Source: MOH, NParks"
+              dataSourceTooltip="Credibility: High. Data from MOH and NParks."
+              slaughterhouseDataSource="Source: SFA"
+              slaughterhouseDataSourceTooltip="Credibility: High. Data from SFA."
+              onViewLayer={() => setActiveSurveillanceLayer('zoonotic')}
+            />
+            <EnvironmentalPanel
+              alerts={oneHealthIndexDataSingapore.environmental}
+              onAlertClick={setWastewaterDetail}
+              dataSource="Source: NEA"
+              dataSourceTooltip="Credibility: High. Data from NEA."
+              onViewLayer={() => setActiveSurveillanceLayer('environmental')}
+            />
+             <WildlifeSurveillancePanel
+              alerts={oneHealthIndexDataSingapore.wildlife}
+              onAlertClick={setWildlifeDetail}
+              dataSource="Source: NParks"
+              dataSourceTooltip="Credibility: High. Data from NParks."
+              onViewLayer={() => setActiveSurveillanceLayer('wildlife')}
+            />
+            <DisasterResponsePanel
+              alerts={oneHealthIndexDataSingapore.disasters}
+              onAlertClick={setDisasterDetail}
+              dataSource="Source: SCDF, PUB"
+              dataSourceTooltip="Credibility: High. Data from SCDF and PUB."
+               onViewLayer={() => setActiveSurveillanceLayer('disaster')}
+            />
+            <TransitSurveillancePanel
+              alerts={transitAlertsSingapore}
+              onAlertClick={setTransitDetail}
+            />
+            <GenomicSurveillancePanel
+              alerts={oneHealthIndexDataSingapore.genomic}
+              onAlertClick={setGenomicDetail}
+              dataSource="Source: NPHL"
+              dataSourceTooltip="Credibility: Very High. Data from National Public Health Lab."
+              onViewLayer={() => setActiveSurveillanceLayer('genomic')}
+            />
+        </div>
+      </div>
+
+      {zoonoticDetail && (
+        <ZoonoticDetailModal 
+          alert={zoonoticDetail} 
+          onClose={() => setZoonoticDetail(null)} 
+        />
+      )}
+      {wastewaterDetail && (
+        <WastewaterDetailModal 
+          alert={wastewaterDetail} 
+          onClose={() => setWastewaterDetail(null)} 
+        />
+      )}
+      {wildlifeDetail && (
+        <WildlifeDetailModal
+          alert={wildlifeDetail}
+          onClose={() => setWildlifeDetail(null)}
+        />
+      )}
+      {disasterDetail && (
+        <DisasterDetailModal
+          alert={disasterDetail}
+          onClose={() => setDisasterDetail(null)}
+        />
+      )}
+      {genomicDetail && (
+        <GenomicDetailModal
+          alert={genomicDetail}
+          onClose={() => setGenomicDetail(null)}
+        />
+      )}
+      {slaughterhouseDetail && (
+        <SlaughterhouseDetailModal
+          alert={slaughterhouseDetail}
+          onClose={() => setSlaughterhouseDetail(null)}
+        />
+      )}
+      {transitDetail && (
+        <TransitDetailModal
+          alert={transitDetail}
+          onClose={() => setTransitDetail(null)}
+        />
+      )}
+    </>
+  );
+};
+
+export default DashboardSingapore;
