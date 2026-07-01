@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppUser } from '../types';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 interface AuthScreenProps {
   onLogin: (payload: { email: string; password: string }) => Promise<void>;
@@ -19,12 +19,69 @@ export interface SignupFormState {
 }
 
 const countryCodes = [
-  { label: 'India (+91)', value: '+91' },
-  { label: 'United States (+1)', value: '+1' },
-  { label: 'United Kingdom (+44)', value: '+44' },
-  { label: 'Singapore (+65)', value: '+65' },
-  { label: 'United Arab Emirates (+971)', value: '+971' },
+  { label: 'Afghanistan (+93)', value: '+93' },
+  { label: 'Albania (+355)', value: '+355' },
+  { label: 'Algeria (+213)', value: '+213' },
+  { label: 'Argentina (+54)', value: '+54' },
   { label: 'Australia (+61)', value: '+61' },
+  { label: 'Austria (+43)', value: '+43' },
+  { label: 'Bahrain (+973)', value: '+973' },
+  { label: 'Bangladesh (+880)', value: '+880' },
+  { label: 'Belgium (+32)', value: '+32' },
+  { label: 'Bhutan (+975)', value: '+975' },
+  { label: 'Brazil (+55)', value: '+55' },
+  { label: 'Canada (+1)', value: '+1' },
+  { label: 'China (+86)', value: '+86' },
+  { label: 'Colombia (+57)', value: '+57' },
+  { label: 'Denmark (+45)', value: '+45' },
+  { label: 'Egypt (+20)', value: '+20' },
+  { label: 'Finland (+358)', value: '+358' },
+  { label: 'France (+33)', value: '+33' },
+  { label: 'Germany (+49)', value: '+49' },
+  { label: 'Greece (+30)', value: '+30' },
+  { label: 'Hong Kong (+852)', value: '+852' },
+  { label: 'India (+91)', value: '+91' },
+  { label: 'Indonesia (+62)', value: '+62' },
+  { label: 'Iran (+98)', value: '+98' },
+  { label: 'Iraq (+964)', value: '+964' },
+  { label: 'Ireland (+353)', value: '+353' },
+  { label: 'Israel (+972)', value: '+972' },
+  { label: 'Italy (+39)', value: '+39' },
+  { label: 'Japan (+81)', value: '+81' },
+  { label: 'Jordan (+962)', value: '+962' },
+  { label: 'Kenya (+254)', value: '+254' },
+  { label: 'Kuwait (+965)', value: '+965' },
+  { label: 'Malaysia (+60)', value: '+60' },
+  { label: 'Mexico (+52)', value: '+52' },
+  { label: 'Myanmar (+95)', value: '+95' },
+  { label: 'Nepal (+977)', value: '+977' },
+  { label: 'Netherlands (+31)', value: '+31' },
+  { label: 'New Zealand (+64)', value: '+64' },
+  { label: 'Nigeria (+234)', value: '+234' },
+  { label: 'Norway (+47)', value: '+47' },
+  { label: 'Oman (+968)', value: '+968' },
+  { label: 'Pakistan (+92)', value: '+92' },
+  { label: 'Philippines (+63)', value: '+63' },
+  { label: 'Poland (+48)', value: '+48' },
+  { label: 'Portugal (+351)', value: '+351' },
+  { label: 'Qatar (+974)', value: '+974' },
+  { label: 'Russia (+7)', value: '+7' },
+  { label: 'Saudi Arabia (+966)', value: '+966' },
+  { label: 'Singapore (+65)', value: '+65' },
+  { label: 'South Africa (+27)', value: '+27' },
+  { label: 'South Korea (+82)', value: '+82' },
+  { label: 'Spain (+34)', value: '+34' },
+  { label: 'Sri Lanka (+94)', value: '+94' },
+  { label: 'Sweden (+46)', value: '+46' },
+  { label: 'Switzerland (+41)', value: '+41' },
+  { label: 'Taiwan (+886)', value: '+886' },
+  { label: 'Thailand (+66)', value: '+66' },
+  { label: 'Turkey (+90)', value: '+90' },
+  { label: 'Ukraine (+380)', value: '+380' },
+  { label: 'United Arab Emirates (+971)', value: '+971' },
+  { label: 'United Kingdom (+44)', value: '+44' },
+  { label: 'United States (+1)', value: '+1' },
+  { label: 'Vietnam (+84)', value: '+84' },
 ];
 
 const emptySignupForm: SignupFormState = {
@@ -47,10 +104,14 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
 const inputClassName =
   'w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400';
 
+const passwordInputClassName = `${inputClassName} pr-12`;
+
 const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onSignup, isSubmitting, errorMessage }) => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [signupForm, setSignupForm] = useState<SignupFormState>(emptySignupForm);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
 
   const handleLoginSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -123,13 +184,23 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onSignup, isSubmitting
                 />
               </Field>
               <Field label="Password">
-                <input
-                  type="password"
-                  required
-                  className={inputClassName}
-                  value={loginForm.password}
-                  onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))}
-                />
+                <div className="relative">
+                  <input
+                    type={showLoginPassword ? 'text' : 'password'}
+                    required
+                    className={passwordInputClassName}
+                    value={loginForm.password}
+                    onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword((current) => !current)}
+                    className="absolute inset-y-0 right-3 flex items-center text-slate-400 transition hover:text-white"
+                    aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showLoginPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                  </button>
+                </div>
               </Field>
               <button
                 type="submit"
@@ -203,14 +274,24 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onSignup, isSubmitting
               </Field>
               <div className="md:col-span-2">
                 <Field label="Password">
-                  <input
-                    type="password"
-                    required
-                    minLength={8}
-                    className={inputClassName}
-                    value={signupForm.password}
-                    onChange={(event) => setSignupForm((current) => ({ ...current, password: event.target.value }))}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showSignupPassword ? 'text' : 'password'}
+                      required
+                      minLength={8}
+                      className={passwordInputClassName}
+                      value={signupForm.password}
+                      onChange={(event) => setSignupForm((current) => ({ ...current, password: event.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSignupPassword((current) => !current)}
+                      className="absolute inset-y-0 right-3 flex items-center text-slate-400 transition hover:text-white"
+                      aria-label={showSignupPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showSignupPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                    </button>
+                  </div>
                 </Field>
               </div>
               <div className="md:col-span-2">
