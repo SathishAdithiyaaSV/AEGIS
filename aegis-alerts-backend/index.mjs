@@ -126,34 +126,6 @@ const adminRequired = async (req, res, next) => {
   return next();
 };
 
-const ensureAdminUser = async () => {
-  const existingAdmin = await User.findOne({ email: ADMIN_EMAIL });
-  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
-
-  if (!existingAdmin) {
-    await User.create({
-      name: 'Kharthik',
-      email: ADMIN_EMAIL,
-      phoneCountryCode: '+91',
-      phoneNumber: '0000000000',
-      profession: 'Administrator',
-      organization: 'Aegis Control',
-      passwordHash,
-      isAdmin: true,
-    });
-    return;
-  }
-
-  existingAdmin.isAdmin = true;
-  existingAdmin.passwordHash = passwordHash;
-  if (!existingAdmin.name) existingAdmin.name = 'Kharthik';
-  if (!existingAdmin.phoneCountryCode) existingAdmin.phoneCountryCode = '+91';
-  if (!existingAdmin.phoneNumber) existingAdmin.phoneNumber = '0000000000';
-  if (!existingAdmin.profession) existingAdmin.profession = 'Administrator';
-  if (!existingAdmin.organization) existingAdmin.organization = 'Aegis Control';
-  await existingAdmin.save();
-};
-
 const buildSmsBody = (payload) => {
   const lines = [
     'AEGIS NATIONAL ESCALATION',
@@ -360,8 +332,6 @@ const start = async () => {
   if (!connected) {
     throw lastError;
   }
-
-  await ensureAdminUser();
 
   app.listen(port, '0.0.0.0', () => {
     console.log(`Aegis alerts API listening on http://0.0.0.0:${port}`);

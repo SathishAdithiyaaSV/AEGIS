@@ -138,9 +138,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onSignup, isSubmitting
               >
                 {isSubmitting ? 'Signing in...' : 'Login to Aegis'}
               </button>
-              <p className="text-xs text-slate-400">
-                Admin access is reserved for <span className="font-semibold text-slate-200">kharthikpk@gmail.com</span>.
-              </p>
             </form>
           ) : (
             <form className="grid gap-5 md:grid-cols-2" onSubmit={handleSignupSubmit}>
