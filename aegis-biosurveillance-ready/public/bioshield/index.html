@@ -10,5 +10,119 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        const overlayId = 'aegis-custom-brief-overlay';
+
+        const getScenarioName = () => {
+          const heading = Array.from(document.querySelectorAll('h3, h2')).find((node) =>
+            /Original Vector|Variant Alpha|Variant Beta/.test(node.textContent || '')
+          );
+          const scenarioBlock = Array.from(document.querySelectorAll('div')).find((node) =>
+            (node.textContent || '').includes('CURRENT SIMULATION:')
+          );
+          if (heading && scenarioBlock) {
+            return scenarioBlock.textContent.replace(/\s+/g, ' ').trim();
+          }
+          return 'Coordinated synthetic threat scenario under active review.';
+        };
+
+        const getDirectiveLines = () => {
+          const tacticalPanel = Array.from(document.querySelectorAll('div')).find((node) =>
+            (node.textContent || '').includes('HEALTH DEPT ACTIONABLE INTEL')
+          );
+          const listItems = tacticalPanel ? Array.from(tacticalPanel.querySelectorAll('li')).map((li) => li.textContent.trim()) : [];
+          if (listItems.length) {
+            return listItems;
+          }
+          return [
+            'Initiate immediate physical lockdown of the compromised facility.',
+            'Broadcast a civilian shelter-in-place advisory for the impacted region.',
+            'Prepare surge medical command for rapid AI-generated countermeasure deployment.'
+          ];
+        };
+
+        const closeCustomOverlay = () => {
+          const overlay = document.getElementById(overlayId);
+          if (overlay) {
+            overlay.remove();
+          }
+        };
+
+        const openCustomOverlay = () => {
+          closeCustomOverlay();
+
+          const directives = getDirectiveLines();
+          const summary = getScenarioName();
+
+          const overlay = document.createElement('div');
+          overlay.id = overlayId;
+          overlay.style.position = 'fixed';
+          overlay.style.inset = '10vh 10vw';
+          overlay.style.zIndex = '10000';
+          overlay.style.display = 'flex';
+          overlay.style.flexDirection = 'column';
+          overlay.style.padding = '32px';
+          overlay.style.background = 'rgba(15,23,42,0.98)';
+          overlay.style.border = '2px solid #fbbf24';
+          overlay.style.borderRadius = '12px';
+          overlay.style.boxShadow = '0 0 50px rgba(251,191,36,0.3)';
+          overlay.style.overflow = 'hidden';
+
+          overlay.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #fbbf24;padding-bottom:16px;margin-bottom:24px;">
+              <h2 style="margin:0;color:#fbbf24;font-size:24px;letter-spacing:0.04em;">GLOBAL ACTIONABLE INTELLIGENCE: OFFICIALS ADVISORY</h2>
+              <button id="aegis-custom-brief-close" style="background:none;border:none;color:#fbbf24;font-size:28px;cursor:pointer;line-height:1;">×</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:24px;overflow:auto;">
+              <div style="background:rgba(251,191,36,0.05);border-left:4px solid #fbbf24;padding:20px;border-radius:4px;">
+                <h3 style="margin-top:0;color:#fbbf24;font-size:16px;">THE EXISTING PROBLEM</h3>
+                <p style="margin:0;color:#e2e8f0;font-size:14px;line-height:1.7;">${summary}</p>
+              </div>
+              <div style="background:rgba(56,189,248,0.05);border-left:4px solid #38bdf8;padding:20px;border-radius:4px;">
+                <h3 style="margin-top:0;color:#38bdf8;font-size:16px;">BENIGN VS. CRITICAL</h3>
+                <p style="color:#94a3b8;font-size:14px;line-height:1.6;">The taxonomic filter safely excludes routine environmental background. The immediate concern is the isolated synthetic fraction flagged for escalation.</p>
+              </div>
+              <div style="background:linear-gradient(135deg, rgba(251,191,36,0.1) 0%, rgba(0,0,0,0) 100%);border:1px solid rgba(251,191,36,0.5);padding:20px;border-radius:4px;">
+                <h3 style="margin-top:0;color:#fbbf24;font-size:18px;letter-spacing:0.05em;">IMMEDIATE OFFICIALS DIRECTIVES</h3>
+                <ol style="margin:0;padding-left:22px;color:#f8fafc;font-size:15px;line-height:1.9;font-weight:700;">
+                  ${directives.map((line) => `<li style="margin-bottom:10px;">${line}</li>`).join('')}
+                </ol>
+              </div>
+            </div>
+          `;
+
+          document.body.appendChild(overlay);
+          document.getElementById('aegis-custom-brief-close').addEventListener('click', closeCustomOverlay);
+          overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) {
+              closeCustomOverlay();
+            }
+          });
+        };
+
+        document.addEventListener('click', (event) => {
+          const target = event.target;
+          if (!(target instanceof Element)) {
+            return;
+          }
+
+          const footerToggle = target.closest('footer');
+          if (footerToggle) {
+            event.preventDefault();
+            event.stopPropagation();
+            openCustomOverlay();
+            return;
+          }
+
+          const inlineActionButton = target.closest('button');
+          if (inlineActionButton && /ACTIONABLE INTELLIGENCE/.test(inlineActionButton.textContent || '')) {
+            event.preventDefault();
+            event.stopPropagation();
+            openCustomOverlay();
+          }
+        }, true);
+      })();
+    </script>
   </body>
 </html>

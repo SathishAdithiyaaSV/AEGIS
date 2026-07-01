@@ -1,5 +1,18 @@
 import React from 'react';
 
+export interface AppUser {
+  id: string;
+  name: string;
+  email: string;
+  phoneCountryCode: string;
+  phoneNumber: string;
+  profession: string;
+  organization: string;
+  isAdmin: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PopulationRiskItem {
   location: string;
   population: string;

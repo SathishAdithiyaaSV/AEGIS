@@ -96,7 +96,7 @@ ${dataSummary}`;
     const response = await withRetryAndQueue<GenerateContentResponse>(() => {
         const ai = getAiClient();
         return ai.models.generateContent({
-            model: 'gemini-2.5-flash', // Switched to Flash for speed/cost on summaries
+            model: 'gemini-3-flash-preview', // Switched to Flash for speed/cost on summaries
             contents: prompt,
         });
     });
@@ -129,7 +129,7 @@ ${threatsPrompts}
         const response = await withRetryAndQueue<GenerateContentResponse>(() => {
           const ai = getAiClient();
           return ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -160,7 +160,7 @@ ${indexSummary}`;
     const response = await withRetryAndQueue<GenerateContentResponse>(() => {
       const ai = getAiClient();
       return ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
       });
     });
@@ -188,7 +188,7 @@ ${stateDataSummary}
         const response = await withRetryAndQueue<GenerateContentResponse>(() => {
             const ai = getAiClient();
             return ai.models.generateContent({
-                model: 'gemini-2.5-pro',
+                model: 'gemini-3-flash-preview',
                 contents: prompt,
             });
         });
@@ -214,7 +214,7 @@ Structure:
         const response = await withRetryAndQueue<GenerateContentResponse>(() => {
             const ai = getAiClient();
             return ai.models.generateContent({
-                model: 'gemini-2.5-pro',
+                model: 'gemini-3-flash-preview',
                 contents: prompt,
             });
         });
@@ -242,7 +242,7 @@ ${inventorySummary}
         const response = await withRetryAndQueue<GenerateContentResponse>(() => {
             const ai = getAiClient();
             return ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-3-flash-preview',
                 contents: prompt,
             });
         });
@@ -271,7 +271,7 @@ ${summary}
         const response = await withRetryAndQueue<GenerateContentResponse>(() => {
             const ai = getAiClient();
             return ai.models.generateContent({
-                model: 'gemini-2.5-pro',
+                model: 'gemini-3-flash-preview',
                 contents: prompt,
             });
         });
@@ -286,7 +286,7 @@ ${summary}
 // --- Alert Response Generators (Zoonotic, Wastewater, Wildlife, Disaster, Genomic, Weapons, Agriculture) ---
 // Using generic handler to reduce code duplication for similar patterns, but keeping distinct functions for type safety
 
-const generateAlertResponse = async (prompt: string, model: string = 'gemini-2.5-pro') => {
+const generateAlertResponse = async (prompt: string, model: string = 'gemini-3-flash-preview') => {
     try {
         const response = await withRetryAndQueue<GenerateContentResponse>(() => {
             const ai = getAiClient();
@@ -430,7 +430,7 @@ Structure:
 
 export const getLabNetworkAnalysis = async (labStatuses: string): Promise<string> => {
     const prompt = `Analyze BSL-3/4 lab network readiness. Provide a one-paragraph summary.\nData:\n${labStatuses}`;
-    return generateAlertResponse(prompt, 'gemini-2.5-flash');
+    return generateAlertResponse(prompt, 'gemini-3-flash-preview');
 };
 
 export const getBiothreatAnalysis = async (threats: BioThreat[]): Promise<Record<string, string>> => {
@@ -446,7 +446,7 @@ export const getBiothreatAnalysis = async (threats: BioThreat[]): Promise<Record
         const response = await withRetryAndQueue<GenerateContentResponse>(() => {
             const ai = getAiClient();
             return ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-3-flash-preview',
                 contents: prompt,
                 config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: schemaProperties } }
             });
@@ -478,7 +478,7 @@ export const getBulkBiosecurityAnalysisAndPlan = async (
     const response = await withRetryAndQueue<GenerateContentResponse>(() => {
       const ai = getAiClient();
       return ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: schemaProperties } }
       });
@@ -521,7 +521,7 @@ Return JSON: { "projectedCases": [int, int, int, int], "narrativeSummary": "mark
         const response = await withRetryAndQueue<GenerateContentResponse>(() => {
             const ai = getAiClient();
             return ai.models.generateContent({
-                model: 'gemini-2.5-pro',
+                model: 'gemini-3-flash-preview',
                 contents: prompt,
                 config: {
                     responseMimeType: "application/json",
@@ -559,7 +559,7 @@ Return JSON: { "evacuationOrders": "markdown", "projectedImpact": "markdown", "r
         const response = await withRetryAndQueue<GenerateContentResponse>(() => {
             const ai = getAiClient();
             return ai.models.generateContent({
-                model: 'gemini-2.5-pro',
+                model: 'gemini-3-flash-preview',
                 contents: prompt,
                 config: {
                     responseMimeType: "application/json",
@@ -591,7 +591,7 @@ Enum: 'Natural Origin', 'Accidental Lab Release', 'Deliberate Weaponization'.
         const response = await withRetryAndQueue<GenerateContentResponse>(() => {
             const ai = getAiClient();
             return ai.models.generateContent({
-                model: 'gemini-2.5-pro',
+                model: 'gemini-3-flash-preview',
                 contents: prompt,
                 config: {
                     responseMimeType: "application/json",

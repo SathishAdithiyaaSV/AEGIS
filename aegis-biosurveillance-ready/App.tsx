@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import AuthScreen, { SignupFormState } from './components/AuthScreen';
+import AdminUsersModal from './components/AdminUsersModal';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import DashboardIndia from './components/DashboardIndia';
 import DashboardSingapore from './components/DashboardSingapore';
 import BioshieldWorkspace from './components/BioshieldWorkspace';
 import BioshieldFullscreen from './components/BioshieldFullscreen';
-import { EscalatedAlert } from './types';
+import { AppUser, EscalatedAlert } from './types';
+import { getAdminUsers, getCurrentUser, login, signup } from './services/authService';
 
 export type DashboardType = 'US' | 'India' | 'Singapore' | 'Bioshield' | 'BioshieldFullscreen';
 
@@ -30,9 +33,18 @@ const getDashboardFromHash = (): DashboardType => {
   return HASH_TO_DASHBOARD[normalizedHash] ?? 'Singapore';
 };
 
+const AUTH_TOKEN_STORAGE_KEY = 'aegis_auth_token';
+
 function App() {
   const [activeDashboard, setActiveDashboard] = useState<DashboardType>(() => getDashboardFromHash());
   const [activeAlert, setActiveAlert] = useState<EscalatedAlert | null>(null);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(() => window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY));
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+  const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<AppUser[]>([]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -42,6 +54,29 @@ function App() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  useEffect(() => {
+    const hydrateSession = async () => {
+      if (!authToken) {
+        setCurrentUser(null);
+        setIsAuthLoading(false);
+        return;
+      }
+
+      try {
+        const user = await getCurrentUser(authToken);
+        setCurrentUser(user);
+      } catch (_error) {
+        window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+        setAuthToken(null);
+        setCurrentUser(null);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    };
+
+    hydrateSession();
+  }, [authToken]);
 
   const handleSetActiveDashboard = (dashboard: DashboardType) => {
     setActiveDashboard(dashboard);
@@ -66,6 +101,79 @@ function App() {
     setActiveAlert(null);
   };
 
+  const handleAuthSuccess = (token: string, user: AppUser) => {
+    window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+    setAuthToken(token);
+    setCurrentUser(user);
+    setAuthErrorMessage(null);
+  };
+
+  const handleLogin = async (payload: { email: string; password: string }) => {
+    setIsSubmittingAuth(true);
+    setAuthErrorMessage(null);
+    try {
+      const response = await login(payload);
+      handleAuthSuccess(response.token, response.user);
+    } catch (error) {
+      setAuthErrorMessage(error instanceof Error ? error.message : 'Login failed.');
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
+  const handleSignup = async (payload: SignupFormState) => {
+    setIsSubmittingAuth(true);
+    setAuthErrorMessage(null);
+    try {
+      const response = await signup(payload);
+      handleAuthSuccess(response.token, response.user);
+    } catch (error) {
+      setAuthErrorMessage(error instanceof Error ? error.message : 'Signup failed.');
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
+  const handleLogout = () => {
+    window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    setAuthToken(null);
+    setCurrentUser(null);
+    setAdminUsers([]);
+    setIsAdminModalOpen(false);
+  };
+
+  const handleOpenAdminUsers = async () => {
+    if (!authToken || !currentUser?.isAdmin) {
+      return;
+    }
+    try {
+      const users = await getAdminUsers(authToken);
+      setAdminUsers(users);
+      setIsAdminModalOpen(true);
+    } catch (error) {
+      setAuthErrorMessage(error instanceof Error ? error.message : 'Failed to load user list.');
+    }
+  };
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-200">
+        Loading secure access...
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <AuthScreen
+        onLogin={handleLogin}
+        onSignup={handleSignup}
+        isSubmitting={isSubmittingAuth}
+        errorMessage={authErrorMessage}
+      />
+    );
+  }
+
   if (activeDashboard === 'BioshieldFullscreen') {
     return <BioshieldFullscreen onBack={() => handleSetActiveDashboard('Singapore')} />;
   }
@@ -78,6 +186,9 @@ function App() {
           activeDashboard={activeDashboard} 
           setActiveDashboard={handleSetActiveDashboard}
           activeAlert={activeAlert}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onOpenAdminUsers={handleOpenAdminUsers}
         />
         <main className="p-4 sm:p-6 lg:p-8">
           {activeDashboard === 'US' ? (
@@ -102,6 +213,9 @@ function App() {
             />
           )}
         </main>
+        {isAdminModalOpen && (
+          <AdminUsersModal users={adminUsers} onClose={() => setIsAdminModalOpen(false)} />
+        )}
       </div>
     </div>
   );

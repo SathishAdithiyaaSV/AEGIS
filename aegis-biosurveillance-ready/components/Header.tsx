@@ -1,6 +1,6 @@
 import React from 'react';
 import { DashboardType } from '../App';
-import { EscalatedAlert } from '../types';
+import { AppUser, EscalatedAlert } from '../types';
 import { BellAlertIcon } from '@heroicons/react/24/solid';
 
 const ShieldCheckIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -13,9 +13,12 @@ interface HeaderProps {
     activeDashboard: DashboardType;
     setActiveDashboard: (dashboard: DashboardType) => void;
     activeAlert: EscalatedAlert | null;
+    currentUser: AppUser;
+    onLogout: () => void;
+    onOpenAdminUsers: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ activeDashboard, setActiveDashboard, activeAlert }) => {
+const Header: React.FC<HeaderProps> = ({ activeDashboard, setActiveDashboard, activeAlert, currentUser, onLogout, onOpenAdminUsers }) => {
   return (
     <header className="bg-brand-dark-blue/70 backdrop-blur-lg border-b border-brand-light-blue sticky top-0 z-20">
       <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:p-8">
@@ -77,6 +80,26 @@ const Header: React.FC<HeaderProps> = ({ activeDashboard, setActiveDashboard, ac
                 }`}
             >
                 Bioshield
+            </button>
+            {currentUser.isAdmin && (
+              <button
+                onClick={onOpenAdminUsers}
+                className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/20"
+              >
+                Registrants
+              </button>
+            )}
+            <div className="hidden text-right lg:block">
+              <p className="text-sm font-semibold text-white">{currentUser.name}</p>
+              <p className="text-xs text-slate-400">
+                {currentUser.organization} · {currentUser.isAdmin ? 'Admin' : 'Operator'}
+              </p>
+            </div>
+            <button
+              onClick={onLogout}
+              className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+            >
+              Logout
             </button>
           </div>
         </div>

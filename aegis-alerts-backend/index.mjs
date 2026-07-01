@@ -1,11 +1,35 @@
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 import express from 'express';
+import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import twilio from 'twilio';
 
 dotenv.config();
 
 const app = express();
 const port = Number(process.env.PORT || process.env.ALERTS_API_PORT || 3001);
+
+const getMongoUriCandidates = () => {
+  const configuredUri = process.env.MONGODB_URI;
+  const candidates = [configuredUri];
+
+  try {
+    const parsed = new URL(configuredUri);
+    const pathName = parsed.pathname.replace(/^\//, '');
+    if (pathName && pathName !== pathName.toLowerCase()) {
+      parsed.pathname = `/${pathName.toLowerCase()}`;
+      candidates.push(parsed.toString());
+    }
+  } catch (_error) {
+    // Keep the configured URI only if parsing fails.
+  }
+
+  return [...new Set(candidates)];
+};
+
+const ADMIN_EMAIL = 'kharthikpk@gmail.com';
+const ADMIN_PASSWORD = 'Madu@2007';
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -20,14 +44,115 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 
+const userSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    phoneCountryCode: { type: String, required: true, trim: true },
+    phoneNumber: { type: String, required: true, trim: true },
+    profession: { type: String, required: true, trim: true },
+    organization: { type: String, required: true, trim: true },
+    passwordHash: { type: String, required: true },
+    isAdmin: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+const User = mongoose.model('User', userSchema);
+
 const requiredEnvVars = [
+  'MONGODB_URI',
+  'JWT_SECRET',
   'TWILIO_ACCOUNT_SID',
   'TWILIO_AUTH_TOKEN',
   'TWILIO_FROM_NUMBER',
   'TWILIO_TO_NUMBER',
 ];
 
-const missingEnvVars = requiredEnvVars.filter((key) => !process.env[key]);
+const getMissingEnvVars = () => requiredEnvVars.filter((key) => !process.env[key]);
+
+const sanitizeUser = (user) => ({
+  id: user._id.toString(),
+  name: user.name,
+  email: user.email,
+  phoneCountryCode: user.phoneCountryCode,
+  phoneNumber: user.phoneNumber,
+  profession: user.profession,
+  organization: user.organization,
+  isAdmin: user.isAdmin,
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt,
+});
+
+const createToken = (user) =>
+  jwt.sign(
+    {
+      sub: user._id.toString(),
+      email: user.email,
+      isAdmin: user.isAdmin,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+const authRequired = async (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  if (!token) {
+    return res.status(401).json({ ok: false, error: 'Authentication required.' });
+  }
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(payload.sub);
+    if (!user) {
+      return res.status(401).json({ ok: false, error: 'User not found.' });
+    }
+    req.authUser = user;
+    return next();
+  } catch (error) {
+    return res.status(401).json({
+      ok: false,
+      error: error instanceof Error ? error.message : 'Invalid token.',
+    });
+  }
+};
+
+const adminRequired = async (req, res, next) => {
+  if (!req.authUser?.isAdmin) {
+    return res.status(403).json({ ok: false, error: 'Admin access required.' });
+  }
+  return next();
+};
+
+const ensureAdminUser = async () => {
+  const existingAdmin = await User.findOne({ email: ADMIN_EMAIL });
+  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+
+  if (!existingAdmin) {
+    await User.create({
+      name: 'Kharthik',
+      email: ADMIN_EMAIL,
+      phoneCountryCode: '+91',
+      phoneNumber: '0000000000',
+      profession: 'Administrator',
+      organization: 'Aegis Control',
+      passwordHash,
+      isAdmin: true,
+    });
+    return;
+  }
+
+  existingAdmin.isAdmin = true;
+  existingAdmin.passwordHash = passwordHash;
+  if (!existingAdmin.name) existingAdmin.name = 'Kharthik';
+  if (!existingAdmin.phoneCountryCode) existingAdmin.phoneCountryCode = '+91';
+  if (!existingAdmin.phoneNumber) existingAdmin.phoneNumber = '0000000000';
+  if (!existingAdmin.profession) existingAdmin.profession = 'Administrator';
+  if (!existingAdmin.organization) existingAdmin.organization = 'Aegis Control';
+  await existingAdmin.save();
+};
 
 const buildSmsBody = (payload) => {
   const lines = [
@@ -54,20 +179,112 @@ const buildCallMessage = (payload) => {
   ].join(' ');
 };
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', async (_req, res) => {
   res.json({
     ok: true,
-    twilioConfigured: missingEnvVars.length === 0,
-    missingEnvVars,
+    mongoConnected: mongoose.connection.readyState === 1,
+    twilioConfigured: getMissingEnvVars().filter((key) => key.startsWith('TWILIO_')).length === 0,
+    missingEnvVars: getMissingEnvVars(),
   });
 });
 
-app.post('/api/alerts/escalate', async (req, res) => {
-  if (missingEnvVars.length > 0) {
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      phoneCountryCode,
+      phoneNumber,
+      profession,
+      organization,
+      password,
+    } = req.body ?? {};
+
+    if (!name || !email || !phoneCountryCode || !phoneNumber || !profession || !organization || !password) {
+      return res.status(400).json({ ok: false, error: 'All signup fields are required.' });
+    }
+
+    if (String(password).length < 8) {
+      return res.status(400).json({ ok: false, error: 'Password must be at least 8 characters.' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(409).json({ ok: false, error: 'An account with this email already exists.' });
+    }
+
+    const user = await User.create({
+      name: String(name).trim(),
+      email: normalizedEmail,
+      phoneCountryCode: String(phoneCountryCode).trim(),
+      phoneNumber: String(phoneNumber).trim(),
+      profession: String(profession).trim(),
+      organization: String(organization).trim(),
+      passwordHash: await bcrypt.hash(String(password), 10),
+      isAdmin: normalizedEmail === ADMIN_EMAIL,
+    });
+
+    const token = createToken(user);
+    return res.status(201).json({ ok: true, token, user: sanitizeUser(user) });
+  } catch (error) {
+    console.error('Signup error:', error);
+    return res.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : 'Signup failed.',
+    });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body ?? {};
+    if (!email || !password) {
+      return res.status(400).json({ ok: false, error: 'Email and password are required.' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(401).json({ ok: false, error: 'Invalid email or password.' });
+    }
+
+    const validPassword = await bcrypt.compare(String(password), user.passwordHash);
+    if (!validPassword) {
+      return res.status(401).json({ ok: false, error: 'Invalid email or password.' });
+    }
+
+    const token = createToken(user);
+    return res.json({ ok: true, token, user: sanitizeUser(user) });
+  } catch (error) {
+    console.error('Login error:', error);
+    return res.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : 'Login failed.',
+    });
+  }
+});
+
+app.get('/api/auth/me', authRequired, async (req, res) => {
+  return res.json({ ok: true, user: sanitizeUser(req.authUser) });
+});
+
+app.get('/api/admin/users', authRequired, adminRequired, async (_req, res) => {
+  const users = await User.find().sort({ createdAt: -1 });
+  return res.json({
+    ok: true,
+    users: users.map((user) => sanitizeUser(user)),
+  });
+});
+
+app.post('/api/alerts/escalate', authRequired, async (req, res) => {
+  const missingEnvVars = getMissingEnvVars();
+  const missingTwilioVars = missingEnvVars.filter((key) => key.startsWith('TWILIO_'));
+  if (missingTwilioVars.length > 0) {
     return res.status(500).json({
       ok: false,
       error: 'Twilio environment variables are missing.',
-      missingEnvVars,
+      missingEnvVars: missingTwilioVars,
     });
   }
 
@@ -120,6 +337,38 @@ app.post('/api/alerts/escalate', async (req, res) => {
   }
 });
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Aegis alerts API listening on http://0.0.0.0:${port}`);
+const start = async () => {
+  const missingEnvVars = getMissingEnvVars().filter((key) => key !== 'TWILIO_ACCOUNT_SID' && key !== 'TWILIO_AUTH_TOKEN' && key !== 'TWILIO_FROM_NUMBER' && key !== 'TWILIO_TO_NUMBER');
+  if (missingEnvVars.length > 0) {
+    console.error('Missing required environment variables:', missingEnvVars.join(', '));
+    process.exit(1);
+  }
+
+  let connected = false;
+  let lastError = null;
+
+  for (const candidate of getMongoUriCandidates()) {
+    try {
+      await mongoose.connect(candidate);
+      connected = true;
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!connected) {
+    throw lastError;
+  }
+
+  await ensureAdminUser();
+
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`Aegis alerts API listening on http://0.0.0.0:${port}`);
+  });
+};
+
+start().catch((error) => {
+  console.error('Failed to start backend:', error);
+  process.exit(1);
 });
